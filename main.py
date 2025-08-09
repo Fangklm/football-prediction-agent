@@ -13,7 +13,8 @@ class FootballPredictionSystem:
             "9": "日职联 (J1 League)",
             "10": "日职乙 (J2 League)",
             "11": "韩K联 (K League 1)",
-            "12": "巴甲 (Brasileirão)"
+            "12": "巴甲 (Brasileirão)",
+            "13": "美职联 (MLS)"
         }
     
     def add_match(self, match_id, league_code, am_odds, wl_odds, hg_odds, lb_odds=None):
@@ -128,6 +129,11 @@ class FootballPredictionSystem:
         # 法乙专用规则
         if league_code == "8":  # 法乙
             results.extend(self.analyze_ligue2_rules(wl_odds, hg_min, wl_min, hg_draw, wl_draw, am_min))
+            return results
+        
+        # 美职联专用规则
+        if league_code == "13":  # 美职联
+            results.extend(self.analyze_mls_rules(wl_odds, hg_min, wl_min, hg_draw, wl_draw, am_min))
             return results
         
         # 基础赔率分析
@@ -433,8 +439,7 @@ class FootballPredictionSystem:
     
     def check_championship_upper_rules(self, wl_odds, hg_min, wl_min, hg_draw, wl_draw, am_min):
         """检查英冠上盘规则"""
-        hg_wl_diff = hg_min - wl_min
-        hgd_wld_diff = hg_draw - wl_draw
+        wl_min_odds = min(wl_odds)
         
         # 澳门低赔率: AM < 1.70
         if am_min < 1.70:
@@ -443,38 +448,13 @@ class FootballPredictionSystem:
         # 威廉希尔特定赔率: WL = 1.50, 1.44, 1.73, 1.88
         championship_wl_specific = [1.50, 1.44, 1.73, 1.88]
         for odds in championship_wl_specific:
-            if abs(wl_min - odds) < 0.02:
+            if abs(wl_min_odds - odds) < 0.02:
                 return True
-        
-        # 威廉希尔特定赔率: WL = 1.33, 1.57, 1.70, 1.78, 1.95
-        championship_wl_additional = [1.33, 1.57, 1.70, 1.78, 1.95]
-        for odds in championship_wl_additional:
-            if abs(wl_min - odds) < 0.02:
-                return True
-        
-        # HG-WL差值规则: HG-WL ≥ 0.20
-        if hg_wl_diff >= 0.20:
-            return True
-        
-        # HGD-WLD差值规则: HGD-WLD = 0.45, 0.20
-        if abs(hgd_wld_diff - 0.45) < 0.05 or abs(hgd_wld_diff - 0.20) < 0.05:
-            return True
-        
-        # 其他HG-WL规则: HG-WL = 0.04, 0.02, -0.02, -0.08
-        championship_hg_wl_diffs = [0.04, 0.02, -0.02, -0.08]
-        for diff in championship_hg_wl_diffs:
-            if abs(hg_wl_diff - diff) < 0.01:
-                return True
-        
-        # HG-WL < 0.5
-        if hg_wl_diff < 0.5:
-            return True
         
         return False
     
     def check_championship_lower_rules(self, wl_odds, hg_min, wl_min, am_min):
         """检查英冠下盘规则"""
-        hg_wl_diff = hg_min - wl_min
         am_wl_diff = am_min - wl_min
         
         # 澳门高赔率: AM > 2.40
@@ -489,15 +469,68 @@ class FootballPredictionSystem:
         if am_min > 2.00 and 0.01 <= am_wl_diff <= 0.02:
             return True
         
+        return False
+    
+    def analyze_mls_rules(self, wl_odds, hg_min, wl_min, hg_draw, wl_draw, am_min):
+        """美职联专用规则分析"""
+        results = []
+        
+        # 上盘规则（支持低赔率方）
+        if self.check_mls_upper_rules(wl_odds, hg_min, wl_min, hg_draw, wl_draw):
+            results.append("美职联上盘规则触发 -> 上盘/低赔率方")
+        
+        # 下盘规则（支持高赔率方）
+        if self.check_mls_lower_rules(wl_odds, hg_min, wl_min):
+            results.append("美职联下盘规则触发 -> 下盘/高赔率方")
+        
+        return results
+    
+    def check_mls_upper_rules(self, wl_odds, hg_min, wl_min, hg_draw, wl_draw):
+        """检查美职联上盘规则"""
+        wl_min_odds = min(wl_odds)
+        hg_wl_diff = hg_min - wl_min
+        hgd_wld_diff = hg_draw - wl_draw
+        
+        # 威廉希尔特定赔率: WL = 1.33, 1.57, 1.70, 1.78, 1.95
+        mls_wl_specific = [1.33, 1.57, 1.70, 1.78, 1.95]
+        for odds in mls_wl_specific:
+            if abs(wl_min_odds - odds) < 0.02:
+                return True
+        
+        # HG-WL差值规则: HG-WL ≥ 0.20
+        if hg_wl_diff >= 0.20:
+            return True
+        
+        # HGD-WLD差值规则: HGD-WLD = 0.45, 0.20
+        if abs(hgd_wld_diff - 0.45) < 0.05 or abs(hgd_wld_diff - 0.20) < 0.05:
+            return True
+        
+        # 其他HG-WL规则: HG-WL = 0.04, 0.02, -0.02, -0.08
+        mls_hg_wl_diffs = [0.04, 0.02, -0.02, -0.08]
+        for diff in mls_hg_wl_diffs:
+            if abs(hg_wl_diff - diff) < 0.01:
+                return True
+        
+        # HG-WL < 0.5
+        if hg_wl_diff < 0.5:
+            return True
+        
+        return False
+    
+    def check_mls_lower_rules(self, wl_odds, hg_min, wl_min):
+        """检查美职联下盘规则"""
+        wl_min_odds = min(wl_odds)
+        hg_wl_diff = hg_min - wl_min
+        
         # 威廉希尔特定赔率: WL = 2.60, 2.40
-        championship_wl_lower = [2.60, 2.40]
-        for odds in championship_wl_lower:
-            if abs(wl_min - odds) < 0.02:
+        mls_wl_lower = [2.60, 2.40]
+        for odds in mls_wl_lower:
+            if abs(wl_min_odds - odds) < 0.02:
                 return True
         
         # HG-WL差值规则: HG-WL = 0.09, 0.08, 0.07, 0.06, 0.01
-        championship_hg_wl_diffs = [0.09, 0.08, 0.07, 0.06, 0.01]
-        for diff in championship_hg_wl_diffs:
+        mls_hg_wl_diffs = [0.09, 0.08, 0.07, 0.06, 0.01]
+        for diff in mls_hg_wl_diffs:
             if abs(hg_wl_diff - diff) < 0.005:
                 return True
         
@@ -659,6 +692,10 @@ class FootballPredictionSystem:
         
         print("\n南美联赛:")
         for code in ["12"]:
+            print(f"  {code}. {self.leagues[code]}")
+        
+        print("\n北美联赛:")
+        for code in ["13"]:
             print(f"  {code}. {self.leagues[code]}")
         print()
 
