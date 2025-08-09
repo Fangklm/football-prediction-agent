@@ -120,6 +120,16 @@ class FootballPredictionSystem:
             results.extend(self.analyze_j2_league_rules(wl_odds, hg_min, wl_min, hg_draw, wl_draw, am_min))
             return results
         
+        # 英冠专用规则
+        if league_code == "6":  # 英冠
+            results.extend(self.analyze_championship_rules(wl_odds, hg_min, wl_min, hg_draw, wl_draw, am_min))
+            return results
+        
+        # 法乙专用规则
+        if league_code == "8":  # 法乙
+            results.extend(self.analyze_ligue2_rules(wl_odds, hg_min, wl_min, hg_draw, wl_draw, am_min))
+            return results
+        
         # 基础赔率分析
         if am_min < 1.80:
             results.append(f"{league_name} 强队主导 -> 建议支持低赔率方")
@@ -330,6 +340,170 @@ class FootballPredictionSystem:
                 return True
             if 0.07 <= am_wl_diff <= 0.08:
                 return True
+        
+        return False
+    
+    def analyze_ligue2_rules(self, wl_odds, hg_min, wl_min, hg_draw, wl_draw, am_min):
+        """法乙专用规则分析"""
+        results = []
+        
+        # 上盘规则（支持低赔率方）
+        if self.check_ligue2_upper_rules(wl_odds, am_min):
+            results.append("法乙上盘规则触发 -> 上盘/低赔率方")
+        
+        # 下盘规则（支持高赔率方）
+        if self.check_ligue2_lower_rules(wl_odds, am_min, wl_min):
+            results.append("法乙下盘规则触发 -> 下盘/高赔率方")
+        
+        return results
+    
+    def check_ligue2_upper_rules(self, wl_odds, am_min):
+        """检查法乙上盘规则"""
+        wl_min = min(wl_odds)
+        
+        # 威廉希尔单一赔率: WL = 1.44, 1.60
+        ligue2_wl_single = [1.44, 1.60]
+        for odds in ligue2_wl_single:
+            if abs(wl_min - odds) < 0.02:
+                return True
+        
+        # 威廉希尔赔率组合: WL = 2.05+3.00, 2.45+3.20, 2.50+2.90
+        ligue2_wl_combinations = [
+            [2.05, 3.00], [2.45, 3.20], [2.50, 2.90]
+        ]
+        
+        for combo in ligue2_wl_combinations:
+            # 检查最低赔率是否匹配第一个值，平局赔率是否匹配第二个值
+            if abs(wl_min - combo[0]) < 0.03 and abs(wl_odds[1] - combo[1]) < 0.05:
+                return True
+        
+        # 澳门低赔率: AM < 1.70
+        if am_min < 1.70:
+            return True
+        
+        return False
+    
+    def check_ligue2_lower_rules(self, wl_odds, am_min, wl_min):
+        """检查法乙下盘规则"""
+        am_wl_diff = am_min - wl_min
+        
+        # 威廉希尔单一赔率: WL = 2.60, 2.62, 2.40, 2.70
+        ligue2_wl_single = [2.60, 2.62, 2.40, 2.70]
+        for odds in ligue2_wl_single:
+            if abs(wl_min - odds) < 0.02:
+                return True
+        
+        # 威廉希尔赔率组合: WL = 2.30+3.10, 2.45+2.90
+        ligue2_wl_combinations = [
+            [2.30, 3.10], [2.45, 2.90]
+        ]
+        
+        for combo in ligue2_wl_combinations:
+            # 检查最低赔率是否匹配第一个值，平局赔率是否匹配第二个值
+            if abs(wl_min - combo[0]) < 0.03 and abs(wl_odds[1] - combo[1]) < 0.05:
+                return True
+        
+        # 澳门赔率区间: 2.20 < AM < 2.49
+        if 2.20 < am_min < 2.49:
+            return True
+        
+        # AM-WL差值规则: AM > 2.00, AM-WL = 0.05
+        if am_min > 2.00 and abs(am_wl_diff - 0.05) < 0.01:
+            return True
+        
+        # AM-WL差值规则: AM > 2.00, AM-WL = 0.1~0.19
+        if am_min > 2.00 and 0.1 <= am_wl_diff <= 0.19:
+            return True
+        
+        return False
+    
+    def analyze_championship_rules(self, wl_odds, hg_min, wl_min, hg_draw, wl_draw, am_min):
+        """英冠专用规则分析"""
+        results = []
+        
+        # 上盘规则（支持低赔率方）
+        if self.check_championship_upper_rules(wl_odds, hg_min, wl_min, hg_draw, wl_draw, am_min):
+            results.append("英冠上盘规则触发 -> 上盘/低赔率方")
+        
+        # 下盘规则（支持高赔率方）
+        if self.check_championship_lower_rules(wl_odds, hg_min, wl_min, am_min):
+            results.append("英冠下盘规则触发 -> 下盘/高赔率方")
+        
+        return results
+    
+    def check_championship_upper_rules(self, wl_odds, hg_min, wl_min, hg_draw, wl_draw, am_min):
+        """检查英冠上盘规则"""
+        hg_wl_diff = hg_min - wl_min
+        hgd_wld_diff = hg_draw - wl_draw
+        
+        # 澳门低赔率: AM < 1.70
+        if am_min < 1.70:
+            return True
+        
+        # 威廉希尔特定赔率: WL = 1.50, 1.44, 1.73, 1.88
+        championship_wl_specific = [1.50, 1.44, 1.73, 1.88]
+        for odds in championship_wl_specific:
+            if abs(wl_min - odds) < 0.02:
+                return True
+        
+        # 威廉希尔特定赔率: WL = 1.33, 1.57, 1.70, 1.78, 1.95
+        championship_wl_additional = [1.33, 1.57, 1.70, 1.78, 1.95]
+        for odds in championship_wl_additional:
+            if abs(wl_min - odds) < 0.02:
+                return True
+        
+        # HG-WL差值规则: HG-WL ≥ 0.20
+        if hg_wl_diff >= 0.20:
+            return True
+        
+        # HGD-WLD差值规则: HGD-WLD = 0.45, 0.20
+        if abs(hgd_wld_diff - 0.45) < 0.05 or abs(hgd_wld_diff - 0.20) < 0.05:
+            return True
+        
+        # 其他HG-WL规则: HG-WL = 0.04, 0.02, -0.02, -0.08
+        championship_hg_wl_diffs = [0.04, 0.02, -0.02, -0.08]
+        for diff in championship_hg_wl_diffs:
+            if abs(hg_wl_diff - diff) < 0.01:
+                return True
+        
+        # HG-WL < 0.5
+        if hg_wl_diff < 0.5:
+            return True
+        
+        return False
+    
+    def check_championship_lower_rules(self, wl_odds, hg_min, wl_min, am_min):
+        """检查英冠下盘规则"""
+        hg_wl_diff = hg_min - wl_min
+        am_wl_diff = am_min - wl_min
+        
+        # 澳门高赔率: AM > 2.40
+        if am_min > 2.40:
+            return True
+        
+        # AM-WL差值规则: AM > 2.00, AM-WL = 0.1
+        if am_min > 2.00 and abs(am_wl_diff - 0.1) < 0.01:
+            return True
+        
+        # AM-WL差值规则: AM > 2.00, AM-WL = 0.01~0.02
+        if am_min > 2.00 and 0.01 <= am_wl_diff <= 0.02:
+            return True
+        
+        # 威廉希尔特定赔率: WL = 2.60, 2.40
+        championship_wl_lower = [2.60, 2.40]
+        for odds in championship_wl_lower:
+            if abs(wl_min - odds) < 0.02:
+                return True
+        
+        # HG-WL差值规则: HG-WL = 0.09, 0.08, 0.07, 0.06, 0.01
+        championship_hg_wl_diffs = [0.09, 0.08, 0.07, 0.06, 0.01]
+        for diff in championship_hg_wl_diffs:
+            if abs(hg_wl_diff - diff) < 0.005:
+                return True
+        
+        # HG-WL > 0.5
+        if hg_wl_diff > 0.5:
+            return True
         
         return False
     
