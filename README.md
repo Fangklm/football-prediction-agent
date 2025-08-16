@@ -65,8 +65,8 @@
 ### 安装与启动
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/football-prediction-system.git
-cd football-prediction-system
+git clone https://github.com/Fangklm/football-prediction-agent.git
+cd football-prediction-agent
 
 # 直接运行 (无需安装依赖)
 python main.py
